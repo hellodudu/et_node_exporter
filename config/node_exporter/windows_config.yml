@@ -1,0 +1,13 @@
+collectors:
+  enabled: cpu,cs,logical_disk,net,os,service,system
+collector:
+  service:
+    services-where: Name='dudu pc'
+log:
+  level: debug
+scrape:
+  timeout-margin: 0.5
+telemetry:
+  addr: ":9200"
+  path: /metrics
+  max-requests: 5
