@@ -51,6 +51,5 @@ func main() {
 
 	// generate node_exporter config yaml
 	ce := export.NewNodeExporter()
-	ce.UnmarshalToStruct()
 	ce.WriteToFile(cm.GetCombinedService(), exporterPath)
 }

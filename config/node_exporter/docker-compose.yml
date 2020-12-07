@@ -1,0 +1,11 @@
+version: "3"
+services:
+    node-exporter:
+        image: quay.io/prometheus/node-exporter
+        container_name: node-exporter
+        volumes:
+            - /:/host:ro
+        hostname: dudu
+        restart: always
+        ports:
+            - 9200:9200

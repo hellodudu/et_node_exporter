@@ -1,13 +1,13 @@
 collectors:
-  enabled: cpu,cs,logical_disk,net,os,service,system
+    enabled: cpu,cs,logical_disk,net,os,service,system
 collector:
-  service:
-    services-where: Name='dudu windows pc'
+    service:
+        services-where: Name='dudu'
 log:
-  level: debug
+    level: debug
 scrape:
-  timeout-margin: 0.5
+    timeout-margin: 0.5
 telemetry:
-  addr: ":9200"
-  path: /metrics
-  max-requests: 5
+    addr: :9200
+    path: /metrics
+    max-requests: 5
