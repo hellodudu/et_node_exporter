@@ -4,89 +4,102 @@ import (
 	"fmt"
 	"io/ioutil"
 	"main/src/config"
-	"time"
+	"os"
 
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
 )
 
-// prometheus.yml global
-type PrometheusGlobal struct {
-	ScrapeInterval     time.Duration `yaml:"scrape_interval"`
-	EvaluationInterval time.Duration `yaml:"evaluation_interval"`
+type NodeExporterWinTelemetry struct {
+	Addr        string `yaml:"addr"`
+	Path        string `yaml:"path"`
+	MaxRequests int    `yaml:"max-requests"`
 }
 
-// prometheus.yml scrape_configs
-type PrometheusScrapeConfig struct {
-	JobName        string                    `yaml:"job_name"`
-	ScrapeInterval time.Duration             `yaml:"scrape_interval"`
-	MetricsPath    string                    `yaml:"metrics_path,omitempty"`
-	StaticConfigs  []*PrometheusStaticConfig `yaml:"static_configs"`
+type NodeExporterWinScrape struct {
+	TimeoutMargin float32 `yaml:"timeout-margin"`
 }
 
-// prometheus.yml static_configs
-type PrometheusStaticConfig struct {
-	Targets []string `yaml:"targets"`
+type NodeExporterWinLog struct {
+	Level string `yaml:"level"`
 }
 
-type PrometheusServiceExporter struct {
-	Global        *PrometheusGlobal         `yaml:"global"`
-	ScrapeConfigs []*PrometheusScrapeConfig `yaml:"scrape_configs"`
+type NodeExporterWinService struct {
+	ServicesWhere string `yaml:"services-where"`
 }
 
-type PrometheusExporter struct {
-	cse *PrometheusServiceExporter
+type NodeExporterWinCollector struct {
+	Service *NodeExporterWinService `yaml:"service"`
 }
 
-func NewPrometheusExporter() *PrometheusExporter {
-	return &PrometheusExporter{
-		cse: &PrometheusServiceExporter{
-			Global: &PrometheusGlobal{
-				ScrapeInterval:     time.Second * 15,
-				EvaluationInterval: time.Second * 15,
+type NodeExporterWinCollectors struct {
+	Enabled string `yaml:"enabled"`
+}
+
+type NodeExporterWin struct {
+	Collectors *NodeExporterWinCollectors `yaml:"collectors"`
+	Collector  *NodeExporterWinCollector  `yaml:"collector"`
+	Log        *NodeExporterWinLog        `yaml:"log"`
+	Scrape     *NodeExporterWinScrape     `yaml:"scrape"`
+	Telemetry  *NodeExporterWinTelemetry  `yaml:"telemetry"`
+}
+
+type NodeExporter struct {
+	new *NodeExporterWin
+	// nel *NodeExporterLinux
+}
+
+func NewNodeExporter() *NodeExporter {
+	return &NodeExporter{
+		new: &NodeExporterWin{
+			Collectors: &NodeExporterWinCollectors{
+				Enabled: "cpu,cs,logical_disk,net,os,service,system",
 			},
 
-			ScrapeConfigs: make([]*PrometheusScrapeConfig, 0),
+			Collector: &NodeExporterWinCollector{
+				Service: &NodeExporterWinService{
+					ServicesWhere: "default name",
+				},
+			},
+
+			Log: &NodeExporterWinLog{
+				Level: "debug",
+			},
+
+			Scrape: &NodeExporterWinScrape{
+				TimeoutMargin: 0.5,
+			},
+
+			Telemetry: &NodeExporterWinTelemetry{
+				Addr:        ":9200",
+				Path:        "/metrics",
+				MaxRequests: 5,
+			},
 		},
 	}
 }
 
-func (ce *PrometheusExporter) WriteToFile(configs config.CombinedServices, path string) {
-	mapServiceAddr := make(map[string]bool)
-	mapServiceNode := make(map[string]bool)
+func (ne *NodeExporter) WriteToFile(configs config.CombinedServices, path string) {
+	pathWin := fmt.Sprintf("%sprometheus.yml", path)
+	// pathLinux := fmt.Sprintf("%sdocker-compose.yml", path)
 
-	for _, config := range configs {
-		mapServiceAddr[fmt.Sprintf("%s:%s", config.InnerIP, config.WatcherPort)] = true
-		mapServiceNode[fmt.Sprintf("%s:%s", config.InnerIP, config.NodePort)] = true
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Panic().Err(err)
 	}
 
-	// generate watch_service
-	for addr := range mapServiceAddr {
-		scrapeConfig := &PrometheusScrapeConfig{
-			JobName:        addr,
-			ScrapeInterval: time.Second * 5,
-			MetricsPath:    "/metrics",
-			StaticConfigs:  make([]*PrometheusStaticConfig, 0),
-		}
-
-		scrapeConfig.StaticConfigs = append(scrapeConfig.StaticConfigs, &PrometheusStaticConfig{Targets: []string{addr}})
-		ce.cse.ScrapeConfigs = append(ce.cse.ScrapeConfigs, scrapeConfig)
+	mapServiceNode := make(map[string]bool)
+	for _, config := range configs {
+		mapServiceNode[fmt.Sprintf(":%s", config.NodePort)] = true
 	}
 
 	// generate node_exporter
 	for addr := range mapServiceNode {
-		scrapeConfig := &PrometheusScrapeConfig{
-			JobName:        fmt.Sprintf("node_%s", addr),
-			ScrapeInterval: time.Second * 5,
-			MetricsPath:    "/metrics",
-			StaticConfigs:  make([]*PrometheusStaticConfig, 0),
-		}
-
-		scrapeConfig.StaticConfigs = append(scrapeConfig.StaticConfigs, &PrometheusStaticConfig{Targets: []string{addr}})
-		ce.cse.ScrapeConfigs = append(ce.cse.ScrapeConfigs, scrapeConfig)
+		ne.new.Collector.Service.ServicesWhere = fmt.Sprintf("Name='%s'", hostname)
+		ne.new.Telemetry.Addr = addr
 	}
 
-	data, err := yaml.Marshal(ce.cse)
+	data, err := yaml.Marshal(ne.new)
 	if err != nil {
 		log.Fatal().Err(err).Msg("yaml marshal failed")
 	}
@@ -96,20 +109,20 @@ func (ce *PrometheusExporter) WriteToFile(configs config.CombinedServices, path 
 		log.Fatal().Err(err).Msg("write prometheus.yml failed")
 	}
 
-	log.Info().Str("path", path).Msg("write prometheus.yml successful")
+	log.Info().Str("path", path).Msgf("write %s successful", pathWin)
 }
 
 // test
-func (ce *PrometheusExporter) UnmarshalToStruct() {
-	data, err := ioutil.ReadFile("../config/prometheus/prometheus.yml")
+func (ne *NodeExporter) UnmarshalToStruct() {
+	data, err := ioutil.ReadFile("../config/node_exporter/windows_config.yml")
 	if err != nil {
-		log.Fatal().Err(err).Msg("read prometheus.yml failed")
+		log.Fatal().Err(err).Msg("read windows_config.yml failed")
 	}
 
-	err = yaml.Unmarshal(data, ce.cse)
+	err = yaml.Unmarshal(data, ne.new)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unmarshal yaml failed")
 	}
 
-	log.Info().Interface("prometheus yaml", ce.cse).Msg("unmarshal success")
+	log.Info().Interface("windows_config.yaml", ne.new).Msg("unmarshal success")
 }

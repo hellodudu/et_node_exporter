@@ -6,9 +6,9 @@ services:
     container_name: node-exporter
     volumes:
         - /:/host:ro
-    hostname: "macbook pro 2017"
+    hostname: "dudu mbp"
     restart: always
     ports:
-        - "9100:9100"
+        - "9200:9200"
 
     

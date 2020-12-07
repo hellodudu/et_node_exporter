@@ -18,8 +18,8 @@ var importerPath string
 var exporterPath string
 
 func init() {
-	flag.StringVar(&importerPath, "import_path", "../test/scene", "待转换txt路径")
-	flag.StringVar(&exporterPath, "export_path", "../test/consul", "输出docker-compose.yml路径")
+	flag.StringVar(&importerPath, "import_path", "../config/scene", "待转换txt路径")
+	flag.StringVar(&exporterPath, "export_path", "../config/node_exporter", "输出yml路径")
 	initLogger("node_exporter_convertor")
 }
 
@@ -49,8 +49,8 @@ func main() {
 	cm.CombineService()
 	log.Info().Interface("services", cm.GetCombinedService()).Msg("combine service success")
 
-	// generate consul's service.json
-	ce := export.NewPrometheusExporter()
-	destPath := fmt.Sprintf("%sprometheus.yml", exporterPath)
-	ce.WriteToFile(cm.GetCombinedService(), destPath)
+	// generate node_exporter config yaml
+	ce := export.NewNodeExporter()
+	ce.UnmarshalToStruct()
+	ce.WriteToFile(cm.GetCombinedService(), exporterPath)
 }
