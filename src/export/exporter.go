@@ -47,6 +47,7 @@ type NodeExporterWin struct {
 type NodeExporterLinuxConfig struct {
 	Image         string   `yaml:"image"`
 	ContainerName string   `yaml:"container_name"`
+	Command       string   `yaml:"command"`
 	Volumes       []string `yaml:"volumes"`
 	Hostname      string   `yaml:"hostname"`
 	Restart       string   `yaml:"restart"`
@@ -102,6 +103,7 @@ func NewNodeExporter() *NodeExporter {
 				NodeExporterLinuxConfig: &NodeExporterLinuxConfig{
 					Image:         "quay.io/prometheus/node-exporter",
 					ContainerName: "node-exporter",
+					Command:       "--web.listen-address=:9200",
 					Volumes:       []string{"/:/host:ro"},
 					Hostname:      "default linux hostname",
 					Restart:       "always",
@@ -132,6 +134,7 @@ func (ne *NodeExporter) WriteToFile(configs config.CombinedServices, path string
 		ne.new.Telemetry.Addr = fmt.Sprintf(":%s", addr)
 		ne.nel.Services.NodeExporterLinuxConfig.Hostname = hostname
 		ne.nel.Services.NodeExporterLinuxConfig.Ports = append(ne.nel.Services.NodeExporterLinuxConfig.Ports, fmt.Sprintf("%s:%s", addr, addr))
+		ne.nel.Services.NodeExporterLinuxConfig.Command = fmt.Sprintf("--web.listen-address=:%s", addr)
 	}
 
 	// write windows_config.yml

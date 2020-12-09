@@ -2,6 +2,7 @@ version: "3"
 services:
     node-exporter:
         image: quay.io/prometheus/node-exporter
+        command: "--web.listen-address=:9200"
         container_name: node-exporter
         volumes:
             - /:/host:ro
