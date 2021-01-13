@@ -2,11 +2,11 @@ version: "3"
 services:
     node-exporter:
         image: quay.io/prometheus/node-exporter
-        command: "--web.listen-address=:9200"
         container_name: node-exporter
+        command: --web.listen-address=:9200
         volumes:
             - /:/host:ro
-        hostname: dudu
+        hostname: Machine_1
         restart: always
         ports:
             - 9200:9200

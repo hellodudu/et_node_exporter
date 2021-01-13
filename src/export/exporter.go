@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"main/src/config"
-	"os"
 
 	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
@@ -118,28 +117,23 @@ func (ne *NodeExporter) WriteToFile(configs config.CombinedServices, path string
 	pathWin := fmt.Sprintf("%swindows_config.yml", path)
 	pathLinux := fmt.Sprintf("%sdocker-compose.yml", path)
 
-	hostname, err := os.Hostname()
-	if err != nil {
-		log.Panic().Err(err)
-	}
-
-	mapServiceNode := make(map[string]bool)
+	mapServiceNode := make(map[string]int32)
 	for _, config := range configs {
-		mapServiceNode[config.NodePort] = true
+		mapServiceNode[config.NodePort] = config.MachineId
 	}
 
 	// generate node_exporter
-	for addr := range mapServiceNode {
-		ne.new.Collector.Service.ServicesWhere = fmt.Sprintf("Name='%s'", hostname)
+	for addr, machineId := range mapServiceNode {
+		ne.new.Collector.Service.ServicesWhere = fmt.Sprintf("Name='Machine_%d'", machineId)
 		ne.new.Telemetry.Addr = fmt.Sprintf(":%s", addr)
-		ne.nel.Services.NodeExporterLinuxConfig.Hostname = hostname
+		ne.nel.Services.NodeExporterLinuxConfig.Hostname = fmt.Sprintf("Machine_%d", machineId)
 		ne.nel.Services.NodeExporterLinuxConfig.Ports = append(ne.nel.Services.NodeExporterLinuxConfig.Ports, fmt.Sprintf("%s:%s", addr, addr))
 		ne.nel.Services.NodeExporterLinuxConfig.Command = fmt.Sprintf("--web.listen-address=:%s", addr)
 	}
 
 	// write windows_config.yml
 	dataWin, errWin := yaml.Marshal(ne.new)
-	if err != nil {
+	if errWin != nil {
 		log.Fatal().Err(errWin).Msg("yaml marshal failed")
 	}
 

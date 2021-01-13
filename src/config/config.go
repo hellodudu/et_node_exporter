@@ -53,9 +53,10 @@ func (c *StartMachineConfig) GetID() int32 {
 	return c.ID
 }
 
-// 最终要导入consul中的服务配置
+// 最终要导入node_exporter中的服务配置
 type ServiceConfig struct {
 	*StartSceneConfig `json:",inline"`
+	MachineId         int32  `json:"MachineId"`
 	InnerIP           string `json:"InnerIP"`
 	OuterIP           string `json:"OuterIP"`
 	InnerPort         string `json:"InnerPort"`
@@ -177,6 +178,7 @@ func (cm *ConfigManager) CombineService() {
 
 		machineConfig := machineBaseConfig.(*StartMachineConfig)
 
+		service.MachineId = machineConfig.ID
 		service.InnerIP = machineConfig.InnerIP
 		service.OuterIP = machineConfig.OuterIP
 		service.NodePort = machineConfig.NodePort

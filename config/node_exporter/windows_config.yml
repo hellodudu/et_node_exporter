@@ -2,7 +2,7 @@ collectors:
     enabled: cpu,cs,logical_disk,net,os,service,system
 collector:
     service:
-        services-where: Name='dudu'
+        services-where: Name='Machine_1'
 log:
     level: debug
 scrape:
